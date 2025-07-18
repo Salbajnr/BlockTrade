@@ -6,8 +6,8 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { Box, CircularProgress } from '@mui/material';
 import { useAuth } from './hooks/useAuth';
 import { ThemeProvider as CustomThemeProvider } from './contexts/ThemeContext.jsx';
-import { DashboardProvider } from './contexts/NewDashboardC';
-import { AuthProvider } from './contexts/authContext';
+import { DashboardProvider } from './contexts/NewDashboardC.jsx';
+import { AuthProvider } from './contexts/AuthContext';
 import { WalletProvider } from './contexts/WalletContext';
 import getTheme from './theme';
 

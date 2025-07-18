@@ -182,48 +182,152 @@ export const useWallet = () => {
 };
 
 export default WalletContext;
-import { createContext, useContext, useState, useEffect } from 'react';
-import { dashboardAPI } from '../services/api.service';
-import { useAuth } from './authContext';
+
+import { useAuth } from './AuthContext';
 
 const DashboardContext = createContext(null);
 
 export const DashboardProvider = ({ children }) => {
-  const { isAuthenticated } = useAuth();
-  const [dashboardData, setDashboardData] = useState(null);
+  const { isAuthenticated, user } = useAuth();
+  const [dashboardData, setDashboardData] = useState({
+    totalBalance: 0,
+    totalProfit: 0,
+    totalTrades: 0,
+    portfolioValue: 0,
+    recentTransactions: [],
+    performanceData: [],
+    activeWallets: 0,
+    pendingTransactions: 0
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchDashboardData = async () => {
+  // Dashboard statistics
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalVolume: 0,
+    totalTransactions: 0,
+    activeUsers: 0,
+    pendingWithdrawals: 0,
+    systemHealth: 'good'
+  });
+
+  // Refresh dashboard data
+  const refreshDashboard = async () => {
     if (!isAuthenticated) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
-      const response = await dashboardAPI.getDashboardData();
-      setDashboardData(response.data);
+      // Mock data for now - replace with actual API calls
+      setDashboardData({
+        totalBalance: 12500.50,
+        totalProfit: 2450.75,
+        totalTrades: 45,
+        portfolioValue: 15000.25,
+        recentTransactions: [
+          {
+            id: 1,
+            type: 'buy',
+            amount: 100,
+            currency: 'BTC',
+            date: new Date().toISOString(),
+            status: 'completed'
+          },
+          {
+            id: 2,
+            type: 'sell',
+            amount: 0.5,
+            currency: 'ETH',
+            date: new Date().toISOString(),
+            status: 'pending'
+          }
+        ],
+        performanceData: [
+          { date: '2024-01-01', value: 10000 },
+          { date: '2024-01-02', value: 10500 },
+          { date: '2024-01-03', value: 11000 },
+          { date: '2024-01-04', value: 10800 },
+          { date: '2024-01-05', value: 12500 }
+        ],
+        activeWallets: 3,
+        pendingTransactions: 2
+      });
+
+      if (user?.role === 'admin') {
+        setStats({
+          totalUsers: 1250,
+          totalVolume: 5000000,
+          totalTransactions: 15600,
+          activeUsers: 342,
+          pendingWithdrawals: 8,
+          systemHealth: 'good'
+        });
+      }
     } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
+      console.error('Failed to refresh dashboard:', error);
       setError(error.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
   };
 
+  // Load dashboard data on mount and auth changes
   useEffect(() => {
     if (isAuthenticated) {
-      fetchDashboardData();
+      refreshDashboard();
     } else {
-      setDashboardData(null);
+      // Reset data when user logs out
+      setDashboardData({
+        totalBalance: 0,
+        totalProfit: 0,
+        totalTrades: 0,
+        portfolioValue: 0,
+        recentTransactions: [],
+        performanceData: [],
+        activeWallets: 0,
+        pendingTransactions: 0
+      });
+      setStats({
+        totalUsers: 0,
+        totalVolume: 0,
+        totalTransactions: 0,
+        activeUsers: 0,
+        pendingWithdrawals: 0,
+        systemHealth: 'good'
+      });
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
+
+  // Update dashboard data
+  const updateDashboardData = (newData) => {
+    setDashboardData(prev => ({ ...prev, ...newData }));
+  };
+
+  // Add transaction to recent list
+  const addRecentTransaction = (transaction) => {
+    setDashboardData(prev => ({
+      ...prev,
+      recentTransactions: [transaction, ...prev.recentTransactions.slice(0, 9)]
+    }));
+  };
+
+  // Update portfolio value
+  const updatePortfolioValue = (newValue) => {
+    setDashboardData(prev => ({ ...prev, portfolioValue: newValue }));
+  };
 
   const value = {
     dashboardData,
+    stats,
     loading,
     error,
-    fetchDashboardData,
+    refreshDashboard,
+    updateDashboardData,
+    addRecentTransaction,
+    updatePortfolioValue,
+    setError
   };
 
   return (
@@ -233,6 +337,7 @@ export const DashboardProvider = ({ children }) => {
   );
 };
 
+// Custom hook to use dashboard context
 export const useDashboard = () => {
   const context = useContext(DashboardContext);
   if (!context) {
