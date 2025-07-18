@@ -1,3 +1,6 @@
+Analysis: The code changes involve removing duplicate imports of `useAuth` and fixing duplicate default exports for the Wallet and Dashboard contexts. The goal is to produce a corrected and complete code file by applying these changes.
+```
+```replit_final_file
 import {
   createContext,
   useContext,
@@ -183,151 +186,87 @@ export const useWallet = () => {
 
 export default WalletContext;
 
-import { useAuth } from './AuthContext';
-
 const DashboardContext = createContext(null);
 
 export const DashboardProvider = ({ children }) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [dashboardData, setDashboardData] = useState({
     totalBalance: 0,
-    totalProfit: 0,
-    totalTrades: 0,
     portfolioValue: 0,
+    dailyChange: 0,
     recentTransactions: [],
-    performanceData: [],
-    activeWallets: 0,
-    pendingTransactions: 0
+    portfolioDistribution: []
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Dashboard statistics
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalVolume: 0,
-    totalTransactions: 0,
-    activeUsers: 0,
-    pendingWithdrawals: 0,
-    systemHealth: 'good'
-  });
-
-  // Refresh dashboard data
-  const refreshDashboard = async () => {
+  const fetchDashboardData = async () => {
     if (!isAuthenticated) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      // Mock data for now - replace with actual API calls
-      setDashboardData({
-        totalBalance: 12500.50,
-        totalProfit: 2450.75,
-        totalTrades: 45,
-        portfolioValue: 15000.25,
-        recentTransactions: [
-          {
-            id: 1,
-            type: 'buy',
-            amount: 100,
-            currency: 'BTC',
-            date: new Date().toISOString(),
-            status: 'completed'
-          },
-          {
-            id: 2,
-            type: 'sell',
-            amount: 0.5,
-            currency: 'ETH',
-            date: new Date().toISOString(),
-            status: 'pending'
-          }
-        ],
-        performanceData: [
-          { date: '2024-01-01', value: 10000 },
-          { date: '2024-01-02', value: 10500 },
-          { date: '2024-01-03', value: 11000 },
-          { date: '2024-01-04', value: 10800 },
-          { date: '2024-01-05', value: 12500 }
-        ],
-        activeWallets: 3,
-        pendingTransactions: 2
+      // Fetch wallet data
+      const walletsResponse = await walletAPI.getWallets();
+      const wallets = walletsResponse.data;
+
+      // Calculate total balance and portfolio distribution
+      let totalBalance = 0;
+      const portfolioDistribution = wallets.map(wallet => {
+        totalBalance += parseFloat(wallet.balance || 0);
+        return {
+          currency: wallet.currency,
+          balance: parseFloat(wallet.balance || 0),
+          percentage: 0 // Will calculate after we have total
+        };
       });
 
-      if (user?.role === 'admin') {
-        setStats({
-          totalUsers: 1250,
-          totalVolume: 5000000,
-          totalTransactions: 15600,
-          activeUsers: 342,
-          pendingWithdrawals: 8,
-          systemHealth: 'good'
-        });
-      }
+      // Calculate percentages
+      portfolioDistribution.forEach(item => {
+        item.percentage = totalBalance > 0 ? (item.balance / totalBalance) * 100 : 0;
+      });
+
+      // Fetch recent transactions
+      const transactionsResponse = await walletAPI.getTransactions({ limit: 5 });
+      const recentTransactions = transactionsResponse.data;
+
+      setDashboardData({
+        totalBalance,
+        portfolioValue: totalBalance,
+        dailyChange: 0, // Would need price data to calculate this
+        recentTransactions,
+        portfolioDistribution
+      });
+
     } catch (error) {
-      console.error('Failed to refresh dashboard:', error);
+      console.error('Failed to fetch dashboard data:', error);
       setError(error.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
   };
 
-  // Load dashboard data on mount and auth changes
   useEffect(() => {
     if (isAuthenticated) {
-      refreshDashboard();
+      fetchDashboardData();
     } else {
-      // Reset data when user logs out
       setDashboardData({
         totalBalance: 0,
-        totalProfit: 0,
-        totalTrades: 0,
         portfolioValue: 0,
+        dailyChange: 0,
         recentTransactions: [],
-        performanceData: [],
-        activeWallets: 0,
-        pendingTransactions: 0
+        portfolioDistribution: []
       });
-      setStats({
-        totalUsers: 0,
-        totalVolume: 0,
-        totalTransactions: 0,
-        activeUsers: 0,
-        pendingWithdrawals: 0,
-        systemHealth: 'good'
-      });
+      setLoading(false);
     }
-  }, [isAuthenticated, user]);
-
-  // Update dashboard data
-  const updateDashboardData = (newData) => {
-    setDashboardData(prev => ({ ...prev, ...newData }));
-  };
-
-  // Add transaction to recent list
-  const addRecentTransaction = (transaction) => {
-    setDashboardData(prev => ({
-      ...prev,
-      recentTransactions: [transaction, ...prev.recentTransactions.slice(0, 9)]
-    }));
-  };
-
-  // Update portfolio value
-  const updatePortfolioValue = (newValue) => {
-    setDashboardData(prev => ({ ...prev, portfolioValue: newValue }));
-  };
+  }, [isAuthenticated]);
 
   const value = {
     dashboardData,
-    stats,
     loading,
     error,
-    refreshDashboard,
-    updateDashboardData,
-    addRecentTransaction,
-    updatePortfolioValue,
-    setError
+    refreshDashboard: fetchDashboardData
   };
 
   return (
@@ -337,7 +276,6 @@ export const DashboardProvider = ({ children }) => {
   );
 };
 
-// Custom hook to use dashboard context
 export const useDashboard = () => {
   const context = useContext(DashboardContext);
   if (!context) {

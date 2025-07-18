@@ -9,6 +9,11 @@ export default defineConfig({
     host: '0.0.0.0', // Listen on all network interfaces
     strictPort: true,
     open: true,
+    allowedHosts: [
+      'localhost',
+      '.replit.dev',
+      '.repl.co'
+    ],
     hmr: {
       host: 'localhost',
       port: 5173,

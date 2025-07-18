@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import axios from 'axios';
 import { authAPI } from '../services/api.service';
@@ -15,19 +14,19 @@ const useAuthStore = create((set) => ({
   token: null,
   isAuthenticated: false,
   loading: true,
-  
+
   login: async (email, password, rememberMe = false) => {
     try {
       const response = await authAPI.login({ email, password });
       const { token, user } = response.data;
-      
+
       // Store token in localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      
+
       // Set default Authorization header for axios
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
+
       // Update auth state
       set({
         user,
@@ -55,14 +54,14 @@ const useAuthStore = create((set) => ({
     try {
       const response = await authAPI.register(userData);
       const { token, user } = response.data;
-      
+
       // Store token and user data
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      
+
       // Set default Authorization header
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
+
       // Update auth state
       set({
         user,
@@ -97,7 +96,7 @@ const useAuthStore = create((set) => ({
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       delete axios.defaults.headers.common['Authorization'];
-      
+
       // Reset auth state
       set({
         user: null,
@@ -105,7 +104,7 @@ const useAuthStore = create((set) => ({
         isAuthenticated: false,
         loading: false
       });
-      
+
       // Redirect to login page
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
@@ -117,16 +116,16 @@ const useAuthStore = create((set) => ({
     try {
       const response = await authAPI.updateProfile(profileData);
       const { user } = response.data;
-      
+
       // Update stored user data
       localStorage.setItem('user', JSON.stringify(user));
-      
+
       // Update auth state
       set({ 
         user,
         loading: false 
       });
-      
+
       return { 
         success: true,
         user 
@@ -146,19 +145,19 @@ const useAuthStore = create((set) => ({
 const initializeAuth = async () => {
   const token = localStorage.getItem('token');
   const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
-  
+
   if (token && storedUser) {
     try {
       // Set auth header for the verification request
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
+
       // Verify token and get fresh user data
       const response = await authAPI.getCurrentUser();
       const user = response.data;
-      
+
       // Update stored user data
       localStorage.setItem('user', JSON.stringify(user));
-      
+
       // Update auth state
       useAuthStore.setState({
         user,
@@ -172,7 +171,7 @@ const initializeAuth = async () => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       delete axios.defaults.headers.common['Authorization'];
-      
+
       // Reset auth state
       useAuthStore.setState({
         user: null,
@@ -193,15 +192,3 @@ if (typeof window !== 'undefined') {
 }
 
 export const useAuth = () => useAuthStore();
-import { useContext } from 'react';
-import AuthContext from '../contexts/AuthContext';
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-export default useAuth;
