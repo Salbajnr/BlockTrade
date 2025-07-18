@@ -182,3 +182,63 @@ export const useWallet = () => {
 };
 
 export default WalletContext;
+import { createContext, useContext, useState, useEffect } from 'react';
+import { dashboardAPI } from '../services/api.service';
+import { useAuth } from './authContext';
+
+const DashboardContext = createContext(null);
+
+export const DashboardProvider = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchDashboardData = async () => {
+    if (!isAuthenticated) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await dashboardAPI.getDashboardData();
+      setDashboardData(response.data);
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+      setError(error.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchDashboardData();
+    } else {
+      setDashboardData(null);
+    }
+  }, [isAuthenticated]);
+
+  const value = {
+    dashboardData,
+    loading,
+    error,
+    fetchDashboardData,
+  };
+
+  return (
+    <DashboardContext.Provider value={value}>
+      {children}
+    </DashboardContext.Provider>
+  );
+};
+
+export const useDashboard = () => {
+  const context = useContext(DashboardContext);
+  if (!context) {
+    throw new Error('useDashboard must be used within a DashboardProvider');
+  }
+  return context;
+};
+
+export default DashboardContext;
