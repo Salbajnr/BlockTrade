@@ -1,170 +1,95 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import dotenv from 'dotenv';
-import http from 'http';
-import { rateLimit } from 'express-rate-limit';
-import { Sequelize } from 'sequelize';
-import { sequelize, testConnection } from './config/database.js';
-import authRoutes from './routes/auth.js';
-import apiRoutes from './routes/index.js';
-import passwordResetRoutes from './routes/passwordReset.js';
-import './models/User.js';
-import './models/Wallet.js';
-import './models/Transaction.js';
-import { setupAssociations } from './models/associations.js';
-import { notFound, errorHandler } from './middleware/error.middleware.js';
 
-// Load environment variables
-dotenv.config();
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+const path = require('path');
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3001',
-  credentials: true
-}));
+// Security middleware
 app.use(helmet());
-app.use(morgan('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again after 15 minutes'
+  max: 100,
+  message: 'Too many requests from this IP, please try again later.'
 });
-app.use(limiter);
+app.use('/api/', limiter);
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/auth/reset', passwordResetRoutes);
-app.use('/api', apiRoutes);
+// Logging
+app.use(morgan('combined'));
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date() });
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
-// Error handling
-app.use(notFound);
-app.use(errorHandler);
+// Basic API routes (we'll expand these as needed)
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API is working!' });
+});
 
-// Initialize database and start server
-const startServer = async () => {
-  try {
-    console.log('🚀 Starting server initialization...');
+// Serve static files from client build in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../../client/dist')));
+  
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
+  });
+}
 
-    // Test database connection
-    console.log('🔌 Testing database connection...');
-    try {
-      await testConnection();
-      console.log('✅ Database connection successful');
-    } catch (error) {
-      console.error('❌ Database connection failed:', error);
-      throw error;
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || 'Internal Server Error';
+  
+  res.status(status).json({
+    error: {
+      message,
+      status,
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
     }
+  });
+});
 
-    // Import and initialize models
-    console.log('🔄 Initializing models...');
-    try {
-      const { initModels } = await import('./models/index.js');
-      await initModels();
-      console.log('✅ Models initialized successfully');
-    } catch (error) {
-      console.error('❌ Model initialization failed:', error);
-      throw error;
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    error: {
+      message: 'Route not found',
+      status: 404,
+      path: req.originalUrl
     }
+  });
+});
 
-    // Sync database
-    console.log('🔄 Syncing database...');
-    try {
-      await sequelize.sync({ alter: process.env.NODE_ENV !== 'production' });
-      console.log('✅ Database synced successfully');
-    } catch (error) {
-      console.error('❌ Database sync failed:', error);
-      throw error;
-    }
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
+  console.log(`📱 Frontend URL: ${process.env.CLIENT_URL || 'http://localhost:5173'}`);
+  console.log(`🔒 Environment: ${process.env.NODE_ENV || 'development'}`);
+});
 
-    const PORT = process.env.PORT || 5000;
-    const server = http.createServer(app);
-
-    // Enhanced error handling for server startup
-    server.on('error', (error) => {
-      console.error('❌ Server error:', error);
-
-      if (error.syscall !== 'listen') {
-        throw error;
-      }
-
-      const bind = typeof PORT === 'string' ? 'Pipe ' + PORT : 'Port ' + PORT;
-
-      // Handle specific listen errors with friendly messages
-      switch (error.code) {
-        case 'EACCES':
-          console.error('❌ Error: ' + bind + ' requires elevated privileges');
-          process.exit(1);
-          break;
-        case 'EADDRINUSE':
-          console.error('❌ Error: ' + bind + ' is already in use');
-          process.exit(1);
-          break;
-        default:
-          console.error('❌ Unhandled server error:', error);
-          throw error;
-      }
-    });
-
-    // Start the server
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`\n🚀 Server is running on port ${PORT}`);
-      console.log(`🌱 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log('📡 API is ready to accept connections');
-      console.log('💡 Press CTRL-C to stop the server\n');
-    });
-
-    // Handle unhandled promise rejections
-    process.on('unhandledRejection', (reason, promise) => {
-      console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
-      server.close(() => process.exit(1));
-    });
-
-    // Handle uncaught exceptions
-    process.on('uncaughtException', (error) => {
-      console.error('❌ Uncaught Exception:', error);
-      server.close(() => process.exit(1));
-    });
-
-    // Handle process termination
-    process.on('SIGTERM', () => {
-      console.log('\n🛑 SIGTERM received. Shutting down gracefully...');
-      server.close(() => {
-        console.log('✅ Server stopped successfully');
-        process.exit(0);
-      });
-    });
-
-    // Handle Ctrl+C
-    process.on('SIGINT', () => {
-      console.log('\n🛑 Received SIGINT. Shutting down gracefully...');
-      server.close(() => {
-        console.log('✅ Server stopped successfully');
-        process.exit(0);
-      });
-    });
-
-  } catch (error) {
-    console.error('\n❌ Fatal error during server startup:', error);
-    if (error.stack) {
-      console.error('\nStack trace:');
-      console.error(error.stack);
-    }
-    process.exit(1);
-  }
-};
-
-// Start the server
-startServer();
+module.exports = app;

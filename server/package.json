@@ -3,10 +3,10 @@
   "name": "blocktrade-server",
   "version": "1.0.0",
   "description": "BlockTrade Backend Server",
-  "main": "src/server.js",
+  "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
     "test": "jest",
     "migrate": "sequelize-cli db:migrate",
     "seed": "sequelize-cli db:seed:all"

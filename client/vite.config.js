@@ -1,31 +1,23 @@
 
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: '0.0.0.0',
     port: 5173,
-    host: '0.0.0.0', // Listen on all network interfaces
-    strictPort: true,
-    open: true,
-    allowedHosts: [
-      'localhost',
-      '.replit.dev',
-      '.repl.co'
-    ],
-    hmr: {
-      host: 'localhost',
-      port: 5173,
-      protocol: 'ws',
-      overlay: false
-    },
-    watch: {
-      usePolling: true
-    },
-    cors: true
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   },
-  define: {
-    'process.env': {}
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
   }
-});
+})
