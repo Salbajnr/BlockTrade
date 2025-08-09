@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api.service';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.jsx';
 
 const Login = () => {
   const navigate = useNavigate();

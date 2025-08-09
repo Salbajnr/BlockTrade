@@ -6,7 +6,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Contexts
-import { AuthProvider } from './hooks/useAuth';
+import { AuthProvider } from './hooks/useAuth.jsx';
 import { DashboardProvider } from './contexts/DashboardContext';
 
 // Components
