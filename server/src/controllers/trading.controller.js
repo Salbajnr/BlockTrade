@@ -1,4 +1,3 @@
-
 import { Order, Trade, TradingPair, Wallet, sequelize } from '../models/index.js';
 import { broadcastToUser, broadcastToAll } from '../services/websocket.js';
 
@@ -105,8 +104,8 @@ export const cancelOrder = async (req, res) => {
       }
     });
 
-    const remainingValue = order.side === 'buy' 
-      ? order.remainingAmount * order.price 
+    const remainingValue = order.side === 'buy'
+      ? order.remainingAmount * order.price
       : order.remainingAmount;
 
     await wallet.update({
@@ -194,5 +193,71 @@ export const getTrades = async (req, res) => {
   } catch (error) {
     console.error('Get trades error:', error);
     res.status(500).json({ message: 'Error fetching trades' });
+  }
+};
+
+export const getTradingPairs = async (req, res, next) => {
+  try {
+    // Mock trading pairs data for now
+    const mockPairs = [
+      {
+        id: 1,
+        base_currency: 'BTC',
+        quote_currency: 'USD',
+        min_trade_amount: 0.001,
+        max_trade_amount: 10,
+        is_active: true,
+        current_price: 65000,
+        change_24h: 2.5
+      },
+      {
+        id: 2,
+        base_currency: 'ETH',
+        quote_currency: 'USD',
+        min_trade_amount: 0.01,
+        max_trade_amount: 100,
+        is_active: true,
+        current_price: 3200,
+        change_24h: -1.2
+      }
+    ];
+
+    res.json({
+      success: true,
+      data: mockPairs
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMarketData = async (req, res, next) => {
+  try {
+    // Mock market data
+    const mockMarketData = [
+      {
+        symbol: 'BTCUSD',
+        price: 65000,
+        change: 2.5,
+        volume: 1234567,
+        high: 66000,
+        low: 64000
+      },
+      {
+        symbol: 'ETHUSD',
+        price: 3200,
+        change: -1.2,
+        volume: 2345678,
+        high: 3250,
+        low: 3180
+      }
+    ];
+
+    res.json({
+      success: true,
+      data: mockMarketData
+    });
+  } catch (error) {
+    next(error);
   }
 };

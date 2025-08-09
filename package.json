@@ -9,7 +9,9 @@
     "server": "cd server && npm run dev",
     "build": "cd client && npm run build",
     "start": "cd server && npm start",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "echo \"No tests specified\" && exit 0",
+    "setup:db": "cd server && node setup-database.js",
+    "setup": "npm run install:all && npm run setup:db"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"
