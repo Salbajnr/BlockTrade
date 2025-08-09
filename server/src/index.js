@@ -1,4 +1,3 @@
-
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -58,7 +57,7 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     console.log('🚀 Starting server initialization...');
-    
+
     // Test database connection
     console.log('🔌 Testing database connection...');
     try {
@@ -68,7 +67,7 @@ const startServer = async () => {
       console.error('❌ Database connection failed:', error);
       throw error;
     }
-    
+
     // Import and initialize models
     console.log('🔄 Initializing models...');
     try {
@@ -79,7 +78,7 @@ const startServer = async () => {
       console.error('❌ Model initialization failed:', error);
       throw error;
     }
-    
+
     // Sync database
     console.log('🔄 Syncing database...');
     try {
@@ -89,14 +88,14 @@ const startServer = async () => {
       console.error('❌ Database sync failed:', error);
       throw error;
     }
-    
-    const PORT = process.env.PORT || 3001;
+
+    const PORT = process.env.PORT || 5000;
     const server = http.createServer(app);
-    
+
     // Enhanced error handling for server startup
     server.on('error', (error) => {
       console.error('❌ Server error:', error);
-      
+
       if (error.syscall !== 'listen') {
         throw error;
       }
@@ -118,27 +117,27 @@ const startServer = async () => {
           throw error;
       }
     });
-    
+
     // Start the server
-    server.listen(PORT, () => {
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`\n🚀 Server is running on port ${PORT}`);
       console.log(`🌱 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log('📡 API is ready to accept connections');
       console.log('💡 Press CTRL-C to stop the server\n');
     });
-    
+
     // Handle unhandled promise rejections
     process.on('unhandledRejection', (reason, promise) => {
       console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
       server.close(() => process.exit(1));
     });
-    
+
     // Handle uncaught exceptions
     process.on('uncaughtException', (error) => {
       console.error('❌ Uncaught Exception:', error);
       server.close(() => process.exit(1));
     });
-    
+
     // Handle process termination
     process.on('SIGTERM', () => {
       console.log('\n🛑 SIGTERM received. Shutting down gracefully...');
@@ -147,7 +146,7 @@ const startServer = async () => {
         process.exit(0);
       });
     });
-    
+
     // Handle Ctrl+C
     process.on('SIGINT', () => {
       console.log('\n🛑 Received SIGINT. Shutting down gracefully...');
@@ -156,7 +155,7 @@ const startServer = async () => {
         process.exit(0);
       });
     });
-    
+
   } catch (error) {
     console.error('\n❌ Fatal error during server startup:', error);
     if (error.stack) {

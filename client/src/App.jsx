@@ -1,200 +1,213 @@
 
-import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { ThemeProvider } from '@mui/material/styles';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Box, CircularProgress } from '@mui/material';
-import { useAuth } from './hooks/useAuth';
-import { ThemeProvider as CustomThemeProvider } from './contexts/ThemeContext.jsx';
-import { DashboardProvider } from './contexts/NewDashboardC.jsx';
-import { AuthProvider } from './contexts/AuthContext';
-import { WalletProvider } from './contexts/WalletContext';
-import getTheme from './theme';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Layouts
-import DashboardLayout from './layouts/DashboardLayout/DashboardLayout';
+// Contexts
+import { AuthProvider } from './contexts/AuthContext';
+import { DashboardProvider } from './contexts/DashboardContext';
+
+// Components
+import ProtectedRoute from './components/common/ProtectedRoute';
+import Layout from './components/layout/Layout';
+import LandingPage from './components/landing/LandingPage';
 
 // Pages
-import SplashScreen from './components/splash/SplashScreen';
-import LandingPage from './components/landing/LandingPage';
-import AuthLayout from './components/auth/AuthLayout';
-import LoginForm from './components/auth/LoginForm';
-import RegisterForm from './components/auth/RegisterForm';
-import ForgotPasswordForm from './components/auth/ForgotPasswordForm';
-import ResetPasswordForm from './components/auth/ResetPasswordForm';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import DashboardPage from './pages/dashboard/DashboardPage';
+import WalletPage from './pages/wallet/WalletPage';
+import SendPage from './pages/wallet/SendPage';
+import ReceivePage from './pages/wallet/ReceivePage';
+import TransactionsPage from './pages/wallet/TransactionsPage';
+import Trade from './pages/Trade';
+import Profile from './pages/Profile';
+
+// Admin Pages
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
+import UsersPage from './pages/admin/UsersPage';
+import AnalyticsPage from './pages/admin/AnalyticsPage';
+import SettingsPage from './pages/admin/SettingsPage';
+import ActivityLogsPage from './pages/admin/ActivityLogsPage';
+import AdminTransactionsPage from './pages/admin/TransactionsPage';
 
-// Wallet Pages
-import { WalletPage, SendPage, ReceivePage, TransactionsPage } from './pages/wallet';
+const theme = createTheme({
+  palette: {
+    mode: 'dark',
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#dc004e',
+    },
+    background: {
+      default: '#0a0e27',
+      paper: '#1a1d3a',
+    },
+  },
+  typography: {
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+  },
+});
 
-// Protected route component with enhanced role-based access control
-const ProtectedRoute = ({ children, requiredRole = null, redirectTo = null }) => {
-  const { isAuthenticated, user, loading } = useAuth();
-  const location = useLocation();
-  
-  // Show loading state while checking auth
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+      retry: 2,
+    },
+  },
+});
 
-  // If not authenticated, redirect to login with return URL
-  if (!isAuthenticated) {
-    const from = location.pathname !== '/login' ? location.pathname + location.search : '/dashboard';
-    return <Navigate to={`/login?redirect=${encodeURIComponent(from)}`} state={{ from: location }} replace />;
-  }
-  
-  // If role is required but user doesn't have it
-  if (requiredRole && user?.role !== requiredRole) {
-    // Redirect to appropriate dashboard based on user role
-    const defaultRedirect = user?.role === 'admin' ? '/admin/dashboard' : '/dashboard';
-    return <Navigate to={redirectTo || defaultRedirect} replace />;
-  }
-
-  // If authenticated and has required role, render children
-  return children;
-};
-
-// Dashboard layout wrapper with role-based access control
-const DashboardLayoutWrapper = ({ children, requiredRole = null }) => {
-  // Set default redirect based on required role
-  const defaultRedirect = requiredRole === 'admin' ? '/dashboard' : '/admin';
-  
-  return (
-    <ProtectedRoute requiredRole={requiredRole} redirectTo={defaultRedirect}>
-      <DashboardLayout>
-        {children}
-      </DashboardLayout>
-    </ProtectedRoute>
-  );
-};
-
-function AppContent() {
-  const [showSplash, setShowSplash] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-      return savedTheme === 'dark';
-    }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { isAuthenticated, user, loading } = useAuth();
-
-  // Handle initial authentication check and redirection
+function App() {
   useEffect(() => {
-    // Hide splash screen after 1 second
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-      
-      // If user is already authenticated and on the login/register page, redirect to appropriate dashboard
-      if (isAuthenticated && ['/login', '/register', '/forgot-password', '/reset-password'].includes(location.pathname)) {
-        const redirectTo = user?.role === 'admin' ? '/admin' : '/';
-        navigate(redirectTo, { replace: true });
-      }
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [isAuthenticated, location, navigate, user?.role]);
-
-  const theme = getTheme(isDarkMode ? 'dark' : 'light');
+    // Check if user is logged in on app start
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Verify token validity
+      import('./services/api.service').then(({ authAPI }) => {
+        authAPI.getProfile().catch(() => {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        });
+      });
+    }
+  }, []);
 
   return (
-    <CustomThemeProvider value={{ isDarkMode, setIsDarkMode }}>
+    <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <DashboardProvider>
-          {showSplash ? (
-            <SplashScreen />
-          ) : (
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<LandingPage />} />
-              
-              {/* Auth routes */}
-              <Route path="/login" element={
-                <AuthLayout>
-                  <LoginForm />
-                </AuthLayout>
-              } />
-              <Route path="/register" element={
-                <AuthLayout>
-                  <RegisterForm />
-                </AuthLayout>
-              } />
-              <Route path="/forgot-password" element={
-                <AuthLayout>
-                  <ForgotPasswordForm />
-                </AuthLayout>
-              } />
-              <Route path="/reset-password" element={
-                <AuthLayout>
-                  <ResetPasswordForm />
-                </AuthLayout>
-              } />
-              
-              {/* Protected user routes */}
-              <Route path="/dashboard/*" element={
-                <DashboardLayoutWrapper requiredRole="user">
-                  <DashboardPage />
-                </DashboardLayoutWrapper>
-              } />
-              
-              {/* Wallet routes */}
-              <Route path="/wallet" element={
-                <DashboardLayoutWrapper requiredRole="user">
-                  <WalletPage />
-                </DashboardLayoutWrapper>
-              } />
-              <Route path="/wallet/send/:walletId" element={
-                <DashboardLayoutWrapper requiredRole="user">
-                  <SendPage />
-                </DashboardLayoutWrapper>
-              } />
-              <Route path="/wallet/receive/:walletId" element={
-                <DashboardLayoutWrapper requiredRole="user">
-                  <ReceivePage />
-                </DashboardLayoutWrapper>
-              } />
-              <Route path="/wallet/transactions/:walletId" element={
-                <DashboardLayoutWrapper requiredRole="user">
-                  <TransactionsPage />
-                </DashboardLayoutWrapper>
-              } />
-              
-              {/* Protected admin routes */}
-              <Route path="/admin/*" element={
-                <DashboardLayoutWrapper requiredRole="admin">
-                  <AdminDashboardPage />
-                </DashboardLayoutWrapper>
-              } />
-              
-              {/* Catch all other routes */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          )}
-        </DashboardProvider>
-      </ThemeProvider>
-    </CustomThemeProvider>
-  );
-}
+        <AuthProvider>
+          <DashboardProvider>
+            <Router>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-// Main App component with Router
-function App() {
-  return (
-    <Router>
-      <AuthProvider>
-        <WalletProvider>
-          <AppContent />
-        </WalletProvider>
-      </AuthProvider>
-    </Router>
+                {/* Protected routes */}
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <DashboardPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/wallet" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <WalletPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/wallet/send" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <SendPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/wallet/receive" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ReceivePage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/wallet/transactions" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <TransactionsPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/trade" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Trade />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/profile" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Profile />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                {/* Admin routes */}
+                <Route path="/admin" element={
+                  <ProtectedRoute adminOnly>
+                    <Layout>
+                      <AdminDashboardPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/admin/users" element={
+                  <ProtectedRoute adminOnly>
+                    <Layout>
+                      <UsersPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/admin/analytics" element={
+                  <ProtectedRoute adminOnly>
+                    <Layout>
+                      <AnalyticsPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/admin/transactions" element={
+                  <ProtectedRoute adminOnly>
+                    <Layout>
+                      <AdminTransactionsPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/admin/settings" element={
+                  <ProtectedRoute adminOnly>
+                    <Layout>
+                      <SettingsPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/admin/logs" element={
+                  <ProtectedRoute adminOnly>
+                    <Layout>
+                      <ActivityLogsPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                {/* Catch all */}
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </Router>
+          </DashboardProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 

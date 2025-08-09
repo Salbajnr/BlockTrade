@@ -3,7 +3,7 @@ import axios from 'axios';
 import { authAPI } from '../services/api.service';
 
 // Set base API URL from environment variable or default to localhost
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // Configure axios defaults
 axios.defaults.baseURL = API_URL;
